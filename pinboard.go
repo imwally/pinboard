@@ -83,8 +83,8 @@ func (p *Post) Encode() {
 	q.Set("auth_token", p.Token)
 	q.Set("format", "json")
 
-	if p.Url != "" {
-		q.Set("url", p.Url)
+	if p.URL != "" {
+		q.Set("url", p.URL)
 	}
 
 	if p.Count > 0 {
