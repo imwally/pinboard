@@ -10,8 +10,10 @@ import (
 	"strconv"
 )
 
+// The Post struct holds all of the values needed to construct a valid URL that
+// is used to make a GET request to the pinboard API.
 type Post struct {
-	Url         string
+	URL         string
 	Href        string
 	Title       string
 	Description string
@@ -27,6 +29,7 @@ type Post struct {
 	Encoded     *url.URL
 }
 
+// Response struct holds the response of the pinboard API GET requests.
 type Response struct {
 	Result string `json:"result_code"`
 	Date   string `json:"date"`
@@ -39,6 +42,7 @@ const (
 	ver string = "v1"
 )
 
+// Get shortens an http.Get and returns the body.
 func Get(u string) []byte {
 	res, err := http.Get(u)
 	if err != nil {
@@ -54,6 +58,8 @@ func Get(u string) []byte {
 	return body
 }
 
+// UnmarshalResponse will unmarshal the json response from the API into the
+// Response struct.
 func UnmarshalResponse(body []byte) Response {
 	var r Response
 	err := json.Unmarshal(body, &r)
@@ -64,6 +70,9 @@ func UnmarshalResponse(body []byte) Response {
 	return r
 }
 
+// Encode is where the magic happens. It takes the field values from a Post
+// and constructs the URL needed to make the GET request to the pinboard API. It
+// saves the encoded URL in the Post itself as Post.Encoded.
 func (p *Post) Encode() {
 	u, err := url.Parse(api)
 	if err != nil {
@@ -122,6 +131,8 @@ func (p *Post) Encode() {
 	p.Encoded = u
 }
 
+// Add adds a new bookmark. It sets the constructed GET request URL's path to
+// /posts/add.
 func (p *Post) Add() error {
 	p.Encoded.Path = ver + "/posts/add"
 	json := Get(p.Encoded.String())
@@ -134,6 +145,8 @@ func (p *Post) Add() error {
 	return nil
 }
 
+// Delete deletes a bookrmark. It sets the constructed GET request URL's path to
+// /posts/delete.
 func (p *Post) Delete() error {
 	p.Encoded.Path = ver + "/posts/delete"
 	json := Get(p.Encoded.String())
@@ -146,6 +159,8 @@ func (p *Post) Delete() error {
 	return nil
 }
 
+// ShowRecent will show the most recent bookmarks. It sets the constructed GET
+// request URL's path to /posts/recent.
 func (p *Post) ShowRecent() Response {
 	p.Encoded.Path = ver + "/posts/recent"
 	json := Get(p.Encoded.String())
