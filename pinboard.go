@@ -52,7 +52,7 @@ var (
 	}
 )
 
-// Get shortens an http.Get and returns the body.
+// get shortens an http.Get and returns the body.
 func get(u string) (body []byte, err error) {
 	res, err := http.Get(u)
 	if err != nil {
@@ -70,7 +70,7 @@ func get(u string) (body []byte, err error) {
 	return body, nil
 }
 
-// UnmarshalResponse unmarshal's the json response from the Pinboard
+// unmarshalResponse unmarshal's the json response from the Pinboard
 // API into the Response struct.
 func unmarshalResponse(body []byte) (r Response, err error) {
 	var res Response
@@ -84,7 +84,7 @@ func unmarshalResponse(body []byte) (r Response, err error) {
 	return res, nil
 }
 
-// PinboardMethod expects a valid method and a *Post. A valid URL is
+// pinboardMethod expects a valid method and a *Post. A valid URL is
 // constructed from the *Post and finally it makes a call to the
 // Pinboard API based on the method argument.
 func pinboardMethod(method string, p *Post) (r Response, err error) {
