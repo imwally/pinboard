@@ -9,23 +9,26 @@ pinboard [api](https://pinboard.in/api/).
 
 ## Example
 
-```
-// initialise a new pinboard post
-var p pinboard.Post
+```go
+// Initialise a new pinboard post.
+p := new(pinboard.Post)
 
-// set pinboard authentication token
+// Set pinboard authentication token.
 p.Token = "username:TOKEN"
 
-// add a new bookmark
-p.Url = "http://golang.org"                     // required
+// Createa new bookmark.
+p.URL = "http://golang.org"                     // required
 p.Description = "The Go Programming Language"   // required
 
-// encode the post into an api GET request URL.
-p.Encode()
-
-// add the bookmark
+// Add the bookmark.
 err := p.Add()
 if err != nil {
-    fmt.Println(err)
+	fmt.Println(err)
+}
+
+// Delete the bookmark.
+err := p.Delete()
+if err != nil {
+	fmt.Println(err)
 }
 ```
