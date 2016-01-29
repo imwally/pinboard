@@ -10,8 +10,8 @@ import (
 	"strconv"
 )
 
-// The Post struct holds all of the values needed to construct a valid URL that
-// is used to make a GET request to the pinboard API.
+// Post holds values needed to construct a valid URL that is used to
+// make a GET request to the Pinboard API.
 type Post struct {
 	URL         string
 	Href        string
@@ -29,7 +29,7 @@ type Post struct {
 	Encoded     *url.URL
 }
 
-// Response struct holds the response of the pinboard API GET requests.
+// Response holds the response of the Pinboard API GET requests.
 type Response struct {
 	Result string `json:"result_code"`
 	Date   string `json:"date"`
@@ -42,37 +42,82 @@ const (
 	ver string = "v1"
 )
 
+var (
+	// A map of currently supported methods whose values are
+	// Pinboard API endpoints.
+	methods = map[string]string{
+		"add":    "/posts/add",
+		"delete": "/posts/delete",
+		"show":   "/posts/recent",
+	}
+)
+
 // Get shortens an http.Get and returns the body.
-func Get(u string) []byte {
+func get(u string) (body []byte, err error) {
 	res, err := http.Get(u)
 	if err != nil {
 		log.Println(err)
+		return nil, err
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err = ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Println(err)
+		return nil, err
 	}
 
-	return body
+	return body, nil
 }
 
-// UnmarshalResponse will unmarshal the json response from the API into the
-// Response struct.
-func UnmarshalResponse(body []byte) Response {
-	var r Response
-	err := json.Unmarshal(body, &r)
+// UnmarshalResponse unmarshal's the json response from the Pinboard
+// API into the Response struct.
+func unmarshalResponse(body []byte) (r Response, err error) {
+	var res Response
+
+	err = json.Unmarshal(body, &res)
 	if err != nil {
 		log.Println(err)
+		return res, err
 	}
 
-	return r
+	return res, nil
 }
 
-// Encode is where the magic happens. It takes the field values from a Post
-// and constructs the URL needed to make the GET request to the pinboard API. It
-// saves the encoded URL in the Post itself as Post.Encoded.
+// PinboardMethod expects a valid method and a *Post. A valid URL is
+// constructed from the *Post and finally it makes a call to the
+// Pinboard API based on the method argument.
+func pinboardMethod(method string, p *Post) (r Response, err error) {
+	var res Response
+
+	method, ok := methods[method]
+	if !ok {
+		return res, errors.New(method + " is not a valid pinboard method")
+	}
+
+	p.Encode()
+	p.Encoded.Path = ver + method
+
+	json, err := get(p.Encoded.String())
+	if err != nil {
+		return res, err
+	}
+
+	res, err = unmarshalResponse(json)
+	if err != nil {
+		return res, err
+	}
+
+	if res.Result != "done" {
+		return res, errors.New(res.Result)
+	}
+
+	return res, nil
+}
+
+// Encode takes the field values from a Post and constructs the URL
+// needed to make the GET request to the pinboard API. It saves the
+// encoded URL in the Post itself as Post.Encoded.
 func (p *Post) Encode() {
 	u, err := url.Parse(api)
 	if err != nil {
@@ -80,91 +125,38 @@ func (p *Post) Encode() {
 	}
 
 	q := u.Query()
-	q.Set("auth_token", p.Token)
 	q.Set("format", "json")
-
-	if p.URL != "" {
-		q.Set("url", p.URL)
-	}
-
-	if p.Count > 0 {
-		q.Set("count", strconv.Itoa(p.Count))
-	}
-
-	if p.Title != "" {
-		q.Set("title", p.Title)
-	}
-
-	if p.Tag != "" {
-		q.Set("tag", p.Tag)
-	}
-
-	if p.Tags != "" {
-		q.Set("tags", p.Tags)
-	}
-
-	if p.Description != "" {
-		q.Set("description", p.Description)
-	}
-
-	if p.Extended != "" {
-		q.Set("extended", p.Extended)
-	}
-
-	if p.Dt != "" {
-		q.Set("dt", p.Dt)
-	}
-
-	if p.Replace != "" {
-		q.Set("replace", p.Replace)
-	}
-
-	if p.Shared != "" {
-		q.Set("shared", p.Shared)
-	}
-
-	if p.Toread != "" {
-		q.Set("toread", p.Toread)
-	}
-
+	q.Set("auth_token", p.Token)
+	q.Set("url", p.URL)
+	q.Set("count", strconv.Itoa(p.Count))
+	q.Set("title", p.Title)
+	q.Set("tag", p.Tag)
+	q.Set("tags", p.Tags)
+	q.Set("description", p.Description)
+	q.Set("extended", p.Extended)
+	q.Set("dt", p.Dt)
+	q.Set("replace", p.Replace)
+	q.Set("shared", p.Shared)
+	q.Set("toread", p.Toread)
+	
 	u.RawQuery = q.Encode()
 	p.Encoded = u
 }
 
-// Add adds a new bookmark. It sets the constructed GET request URL's path to
-// /posts/add.
+// Add calls PinboardMethod to add a new bookmark.
 func (p *Post) Add() error {
-	p.Encoded.Path = ver + "/posts/add"
-	json := Get(p.Encoded.String())
-	res := UnmarshalResponse(json)
-
-	if res.Result != "done" {
-		return errors.New(res.Result)
-	}
-
-	return nil
+	_, err := pinboardMethod("add", p)
+	return err
 }
 
-// Delete deletes a bookrmark. It sets the constructed GET request URL's path to
-// /posts/delete.
+// Delete calls PinboardMethod to delete a bookmark.
 func (p *Post) Delete() error {
-	p.Encoded.Path = ver + "/posts/delete"
-	json := Get(p.Encoded.String())
-	res := UnmarshalResponse(json)
-
-	if res.Result != "done" {
-		return errors.New(res.Result)
-	}
-
-	return nil
+	_, err := pinboardMethod("delete", p)
+	return err
 }
 
-// ShowRecent will show the most recent bookmarks. It sets the constructed GET
-// request URL's path to /posts/recent.
+// ShowRecent will show the most recent bookmarks.
 func (p *Post) ShowRecent() Response {
-	p.Encoded.Path = ver + "/posts/recent"
-	json := Get(p.Encoded.String())
-	res := UnmarshalResponse(json)
-
+	res, _ := pinboardMethod("show", p)
 	return res
 }
