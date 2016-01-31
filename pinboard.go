@@ -138,7 +138,7 @@ func (p *Post) Encode() {
 	q.Set("replace", p.Replace)
 	q.Set("shared", p.Shared)
 	q.Set("toread", p.Toread)
-	
+
 	u.RawQuery = q.Encode()
 	p.Encoded = u
 }
