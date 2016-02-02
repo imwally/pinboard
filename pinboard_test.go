@@ -1,11 +1,25 @@
 package pinboard
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 )
 
 // A valid token is needed to make calls to the Pinboard API.
 var token = ""
+
+func PrintStruct(s interface{}) {
+	structType := reflect.TypeOf(s)
+	structValue := reflect.ValueOf(s)
+	structNumFields := structType.NumField()
+
+	for i := 0; i < structNumFields; i++ {
+		structField := structType.Field(i)
+		structValue := structValue.Field(i)
+		fmt.Println(structField.Name+":", structValue)
+	}
+}
 
 func TestAdd(t *testing.T) {
 
@@ -34,13 +48,8 @@ func TestShow(t *testing.T) {
 
 	recent := p.ShowRecent()
 	for _, r := range recent.Posts {
-		t.Log("Description:", r.Description)
-		t.Log("URL:", r.Href)
-		t.Log("Tags:", r.Tags)
-		t.Log("Extended:", r.Extended)
-		t.Log("To Read:", r.Toread)
-		t.Log("Shared:", r.Shared)
-		t.Log("----")
+		PrintStruct(r)
+		fmt.Println("---")
 	}
 }
 
@@ -55,4 +64,5 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
 }
