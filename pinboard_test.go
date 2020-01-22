@@ -33,7 +33,6 @@ func PrintStruct(s interface{}) {
 }
 
 func TestAdd(t *testing.T) {
-
 	p := Post{
 		Token:       token,
 		Description: "TESTING PINBOARD CLI CLIENT",
@@ -67,7 +66,7 @@ func TestShow(t *testing.T) {
 func TestDelete(t *testing.T) {
 	p := Post{
 		Token: token,
-		URL:   "https://github.com/imwally/pinboard/testing",
+		URL:   "https://github.com/imwally/pinboard",
 	}
 
 	t.Log("Deleting: ", p.URL)
