@@ -16,7 +16,7 @@ p := new(pinboard.Post)
 // Set pinboard authentication token.
 p.Token = "username:TOKEN"
 
-// Createa new bookmark.
+// Create a new bookmark.
 p.URL = "http://golang.org"                     // required
 p.Description = "The Go Programming Language"   // required
 
