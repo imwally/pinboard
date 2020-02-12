@@ -3,75 +3,52 @@ package pinboard
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"testing"
+	"time"
 )
 
-var token string
+var optAdd *PostsAddOptions
 
+// Can't test anything without proper authentication.
 func TestMain(m *testing.M) {
 	tokenEnv, ok := os.LookupEnv("PINBOARD_TOKEN")
 	if !ok {
-		fmt.Println("pinboard token env not set")
+		fmt.Println("PINBOARD_TOKEN env not set")
 		os.Exit(1)
 	}
 
-	token = tokenEnv
+	SetToken(tokenEnv)
+
+	opt, err := testPostAddOptions()
+	if err != nil {
+		fmt.Println("could not create test post options")
+		os.Exit(1)
+	}
+
+	optAdd = opt
+
 	os.Exit(m.Run())
 }
 
-func PrintStruct(s interface{}) {
-	structType := reflect.TypeOf(s)
-	structValue := reflect.ValueOf(s)
-	structNumFields := structType.NumField()
-
-	for i := 0; i < structNumFields; i++ {
-		structField := structType.Field(i)
-		structValue := structValue.Field(i)
-		fmt.Println(structField.Name+":", structValue)
+func testPostAddOptions() (*PostsAddOptions, error) {
+	dt, err := time.Parse(time.RFC3339, "2010-12-11T19:48:02Z")
+	if err != nil {
+		return nil, err
 	}
-}
 
-func TestAdd(t *testing.T) {
-	p := Post{
-		Token:       token,
-		Description: "TESTING PINBOARD CLI CLIENT",
+	// Post for testing functions. Usually this will be added and
+	// removed within each test. Make sure Replace is true
+	// otherwise "item already exists" errors will ensue.
+	testPost := PostsAddOptions{
 		URL:         "https://github.com/imwally/pinboard",
-		Tags:        "pin pinboard test testing",
-		Extended:    "This is a test from imwally's golang pinboard package. For more information please refer to the pinned URL.",
-		Toread:      "yes",
-		Shared:      "yes",
+		Description: "Testing Pinboard Go Package",
+		Extended:    []byte("This is a test from imwally's golang pinboard package. For more information please refer to the pinned URL."),
+		Tags:        []string{"pin", "pinboard", "test", "testing", "pinboard_1_testing", "pinboard_testing"},
+		Dt:          dt,
+		Toread:      true,
+		Shared:      true,
+		Replace:     true,
 	}
 
-	t.Log("Adding: ", p.URL)
-	err := p.Add()
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestShow(t *testing.T) {
-	p := Post{
-		Token: token,
-		Count: 2,
-	}
-
-	recent := p.ShowRecent()
-	for _, r := range recent.Posts {
-		PrintStruct(r)
-		fmt.Println("---")
-	}
-}
-
-func TestDelete(t *testing.T) {
-	p := Post{
-		Token: token,
-		URL:   "https://github.com/imwally/pinboard",
-	}
-
-	t.Log("Deleting: ", p.URL)
-	err := p.Delete()
-	if err != nil {
-		t.Error(err)
-	}
+	return &testPost, nil
 }

@@ -1,34 +1,12 @@
 # Package pinboard
 
-import "github.com/imwally/pinboard.go"
-
-## Overview
+[![GoDoc](https://godoc.org/github.com/imwally/pinboard?status.svg)](https://godoc.org/github.com/imwally/pinboard)
+[![Go Report Card](https://goreportcard.com/badge/github.com/imwally/pinboard)](https://goreportcard.com/report/github.com/imwally/pinboard)
 
 Package pinboard implements a golang wrapper for the
 pinboard [api](https://pinboard.in/api/).
 
-## Example
+## Documentation
 
-```go
-// Initialise a new pinboard post.
-p := new(pinboard.Post)
-
-// Set pinboard authentication token.
-p.Token = "username:TOKEN"
-
-// Create a new bookmark.
-p.URL = "http://golang.org"                     // required
-p.Description = "The Go Programming Language"   // required
-
-// Add the bookmark.
-err := p.Add()
-if err != nil {
-	fmt.Println(err)
-}
-
-// Delete the bookmark.
-err := p.Delete()
-if err != nil {
-	fmt.Println(err)
-}
-```
+Please refer to [GoDoc](https://godoc.org/github.com/imwally/pinboard)
+for up-to-date documentation.
