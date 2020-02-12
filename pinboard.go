@@ -1,162 +1,212 @@
+// Package pinboard provides a wrapper for accessing the Pinboard API.
+//
+// https://pinboard.in/api/
+//
+// All Pinboard API methods are fully supported.
+//
+// Function names mirror the API endpoints. For example:
+//
+//     PostsAdd() calls the /posts/add method
+//     TagsDelete() calls the /tags/delete method
+//
+// If a method supports optional arguments then a MethodOptions struct
+// allows you to specify those options to pass to said method. For
+// example:
+//
+//     PostsAdd(&PostsAddOptions{})
+//     PostsGet(&PostsGetOptions{})
+//
+// Not all endpoints require certain arguments, in which case you can
+// just pass nil.
+//
+//     PostsAll(nil)
 package pinboard
 
 import (
-	"encoding/json"
-	"errors"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
+	"strings"
+	"time"
 )
 
-// Post holds values needed to construct a valid URL that is used to
-// make a GET request to the Pinboard API.
-type Post struct {
-	URL         string
-	Href        string
-	Title       string
-	Description string
-	Extended    string
-	Tags        string
-	Tag         string
-	Dt          string
-	Replace     string
-	Shared      string
-	Toread      string
-	Token       string
-	Count       int
-	Encoded     *url.URL
-}
-
-// Response holds the response of the Pinboard API GET requests.
-type Response struct {
-	Result string `json:"result_code"`
-	Date   string `json:"date"`
-	User   string `json:"user"`
-	Posts  []Post `json:"posts"`
-}
-
 const (
-	api string = "https://api.pinboard.in/"
-	ver string = "v1"
+	api    string = "https://api.pinboard.in/"
+	ver    string = "v1"
+	apiurl string = api + ver
 )
 
 var (
-	// A map of currently supported methods whose values are
-	// Pinboard API endpoints.
-	methods = map[string]string{
-		"add":    "/posts/add",
-		"delete": "/posts/delete",
-		"show":   "/posts/recent",
+	// Supported Pinboard API methods that map to endpoints.
+	endpoints = map[string]string{
+		"postsUpdate":  "/posts/update",
+		"postsAdd":     "/posts/add",
+		"postsDelete":  "/posts/delete",
+		"postsGet":     "/posts/get",
+		"postsRecent":  "/posts/recent",
+		"postsDates":   "/posts/dates",
+		"postsAll":     "/posts/all",
+		"postsSuggest": "/posts/suggest",
+		"tagsGet":      "/tags/get",
+		"tagsRename":   "/tags/rename",
+		"tagsDelete":   "/tags/delete",
+		"userSecret":   "/user/secret",
+		"userAPIToken": "/user/api_token",
+		"notesList":    "/notes/list",
+		"notesID":      "/notes/",
 	}
+
+	pinboardToken = ""
 )
 
-// get shortens an http.Get and returns the body.
-func get(u string) (body []byte, err error) {
-	res, err := http.Get(u)
+// get checks if endpoint is a valid Pinboard API endpoint and then
+// constructs a valid endpoint URL including the required 'auth_token'
+// and 'format' values along with any optional arguments found in the
+// options interface. It makes a http.Get request, checks HTTP status
+// codes and then finally returns the response body.
+func get(endpoint string, options interface{}) (body []byte, err error) {
+	ep, ok := endpoints[endpoint]
+	if !ok {
+		return nil, fmt.Errorf("error: %s is not a supported endpoint", endpoint)
+	}
+
+	u, err := url.Parse(apiurl + ep)
 	if err != nil {
-		log.Println(err)
+		return nil, err
+	}
+
+	// Set URL query parameters based on the MethodOptions only if
+	// options is not nil.
+	ov := reflect.ValueOf(options)
+	if ov.Kind() == reflect.Ptr && !ov.IsNil() {
+		// /notes/ID hack
+		if endpoint == "notesID" {
+			idOptions := reflect.Indirect(reflect.ValueOf(options))
+			id := idOptions.Field(0).String()
+			u.Path = u.Path + id
+		} else {
+			v, err := values(options)
+			if err != nil {
+				return nil, err
+			}
+
+			u.RawQuery = v.Encode()
+		}
+	}
+
+	// Add API token and format parameters before making request.
+	q := u.Query()
+	q.Add("auth_token", pinboardToken)
+	q.Add("format", "json")
+	u.RawQuery = q.Encode()
+
+	// Call APImethod with fully constructed URL.
+	res, err := http.Get(u.String())
+	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 
+	// Check the HTTP response status code. This will tell us
+	// whether the API token is not set (401) or if we somehow
+	// managed to request an invalid endpoint (500).
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("error: http %d", res.StatusCode)
+	}
+
 	body, err = ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
 
 	return body, nil
 }
 
-// unmarshalResponse unmarshal's the json response from the Pinboard
-// API into the Response struct.
-func unmarshalResponse(body []byte) (r Response, err error) {
-	var res Response
+// values expects a *MethodOptions struct and encodes the fields into
+// url.Values.
+func values(i interface{}) (url.Values, error) {
+	vt := reflect.Indirect(reflect.ValueOf(i)).Type()
+	vv := reflect.Indirect(reflect.ValueOf(i))
 
-	err = json.Unmarshal(body, &res)
-	if err != nil {
-		log.Println(err)
-		return res, err
+	uv := url.Values{}
+
+	for j := 0; j < vv.NumField(); j++ {
+		fName := strings.ToLower(vt.Field(j).Name)
+		fType := vt.Field(j).Type
+		fValue := vv.Field(j)
+
+		switch fType.Kind() {
+
+		// No need to anything special with strings.
+		case reflect.String:
+			uv.Add(fName, fValue.String())
+
+		case reflect.Int:
+
+			// Check to make sure we don't have the zero
+			// value first.
+			if fValue.Interface().(int) != 0 {
+				uv.Add(fName, strconv.Itoa(fValue.Interface().(int)))
+			}
+
+		// Slices may be of type byte or type string, so
+		// process accordingly.
+		case reflect.Slice:
+			if fValue.Len() > 0 {
+
+				// Check what kind of slice we have.
+				switch fValue.Index(0).Kind() {
+
+				// byte slice, add as a string
+				case reflect.Uint8:
+					uv.Add(fName, string(fValue.Interface().([]uint8)))
+
+				// string slice, create single space delimted
+				// string
+				case reflect.String:
+					spaceDelimted := ""
+					for si := 0; si < fValue.Len(); si++ {
+						spaceDelimted += fValue.Index(si).Interface().(string) + " "
+					}
+					uv.Add(fName, strings.TrimRight(spaceDelimted, " "))
+				}
+			}
+
+		// Bool's are represented as yes/no strings.
+		case reflect.Bool:
+			if fValue.Bool() {
+				uv.Add(fName, "yes")
+			} else {
+				uv.Add(fName, "no")
+			}
+
+		// Process various structs according to their
+		// underlying type.
+		case reflect.Struct:
+			if fType.String() == "time.Time" {
+				// Even though we hit a time.Time
+				// field, make sure we have something
+				// other than the zero value before
+				// adding it to the url values,
+				// otherwise the zero value will be
+				// added.
+				timeField := fValue.Interface().(time.Time)
+				if !timeField.IsZero() {
+					dt := timeField.Format(time.RFC3339)
+					uv.Add(fName, dt)
+				}
+			}
+		}
 	}
 
-	return res, nil
+	return uv, nil
 }
 
-// pinboardMethod expects a valid method and a *Post. A valid URL is
-// constructed from the *Post and finally it makes a call to the
-// Pinboard API based on the method argument.
-func pinboardMethod(method string, p *Post) (r Response, err error) {
-	var res Response
-
-	method, ok := methods[method]
-	if !ok {
-		return res, errors.New(method + " is not a valid pinboard method")
-	}
-
-	p.Encode()
-	p.Encoded.Path = ver + method
-
-	json, err := get(p.Encoded.String())
-	if err != nil {
-		return res, err
-	}
-
-	res, err = unmarshalResponse(json)
-	if err != nil {
-		return res, err
-	}
-
-	if res.Result != "done" {
-		return res, errors.New(res.Result)
-	}
-
-	return res, nil
-}
-
-// Encode takes the field values from a Post and constructs the URL
-// needed to make the GET request to the pinboard API. It saves the
-// encoded URL in the Post itself as Post.Encoded.
-func (p *Post) Encode() {
-	u, err := url.Parse(api)
-	if err != nil {
-		log.Println(err)
-	}
-
-	q := u.Query()
-	q.Set("format", "json")
-	q.Set("auth_token", p.Token)
-	q.Set("url", p.URL)
-	q.Set("count", strconv.Itoa(p.Count))
-	q.Set("title", p.Title)
-	q.Set("tag", p.Tag)
-	q.Set("tags", p.Tags)
-	q.Set("description", p.Description)
-	q.Set("extended", p.Extended)
-	q.Set("dt", p.Dt)
-	q.Set("replace", p.Replace)
-	q.Set("shared", p.Shared)
-	q.Set("toread", p.Toread)
-
-	u.RawQuery = q.Encode()
-	p.Encoded = u
-}
-
-// Add calls PinboardMethod to add a new bookmark.
-func (p *Post) Add() error {
-	_, err := pinboardMethod("add", p)
-	return err
-}
-
-// Delete calls PinboardMethod to delete a bookmark.
-func (p *Post) Delete() error {
-	_, err := pinboardMethod("delete", p)
-	return err
-}
-
-// ShowRecent will show the most recent bookmarks.
-func (p *Post) ShowRecent() Response {
-	res, _ := pinboardMethod("show", p)
-	return res
+// SetToken sets the API token required to make API calls. The token
+// is expected to be the full string "name:random".
+func SetToken(token string) {
+	pinboardToken = token
 }
