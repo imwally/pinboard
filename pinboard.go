@@ -16,8 +16,7 @@
 //     PostsAdd(&PostsAddOptions{})
 //     PostsGet(&PostsGetOptions{})
 //
-// Not all endpoints require certain arguments, in which case you can
-// just pass nil.
+// Not all endpoints require arguments, in which case just pass nil.
 //
 //     PostsAll(nil)
 package pinboard
