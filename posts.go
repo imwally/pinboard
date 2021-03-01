@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// Aliasing this to get a custom UnmarshalJSON because Pinboard
+// can return `"description": false` in the JSON output.
+type descriptionType string
+
 // Post represents a bookmark.
 type Post struct {
 	// URL of bookmark.
@@ -49,7 +53,7 @@ type Post struct {
 // conversion.
 type post struct {
 	Href        string
-	Description string
+	Description descriptionType
 	Extended    string
 	Tags        string
 	Shared      string
@@ -85,7 +89,7 @@ func (p *post) toPost() (*Post, error) {
 
 	P := Post{
 		Href:        href,
-		Description: p.Description,
+		Description: p.Description.String(),
 		Extended:    []byte(p.Extended),
 		Tags:        tags,
 		Shared:      shared,
@@ -451,4 +455,15 @@ func PostsSuggestRecommended(url string) ([]string, error) {
 	}
 
 	return pr[1].Recommended, nil
+}
+
+func (d *descriptionType) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &d); err != nil {
+		*d = ""
+	}
+	return nil
+}
+
+func (d *descriptionType) String() string {
+	return string(*d)
 }
