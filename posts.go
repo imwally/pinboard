@@ -457,13 +457,20 @@ func PostsSuggestRecommended(url string) ([]string, error) {
 	return pr[1].Recommended, nil
 }
 
+// UnmarshalJSON converts a `descriptionType` into a `string`.
 func (d *descriptionType) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &d); err != nil {
-		*d = ""
+	// Have to do the type dance to avoid an infinite loop.
+	type descriptionTypeAlias descriptionType
+	var d2 descriptionTypeAlias
+
+	if err := json.Unmarshal(data, &d2); err != nil {
+		d2 = ""
 	}
+	*d = descriptionType(d2)
 	return nil
 }
 
+// String returns the `string` value of our `descriptionType`.
 func (d *descriptionType) String() string {
 	return string(*d)
 }
