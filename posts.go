@@ -467,6 +467,7 @@ func (d *descriptionType) UnmarshalJSON(data []byte) error {
 		d2 = ""
 	}
 	*d = descriptionType(d2)
+
 	return nil
 }
 
