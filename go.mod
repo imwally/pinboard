@@ -1,3 +1,3 @@
-module github.com/rjp/pinboard
+module github.com/imwally/pinboard
 
-go 1.13
+go 1.16
