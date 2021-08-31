@@ -320,9 +320,9 @@ func PostsRecent(opt *PostsRecentOptions) ([]*Post, error) {
 
 // postsDatesResponse represents the response from /posts/dates.
 type postsDatesResponse struct {
-	User  string            `json:"user"`
-	Tag   string            `json:"tag"`
-	Dates map[string]string `json:"dates"`
+	User  string         `json:"user"`
+	Tag   string         `json:"tag"`
+	Dates map[string]int `json:"dates"`
 }
 
 // PostsDatesOptions represents the single optional argument for
@@ -336,7 +336,7 @@ type PostsDatesOptions struct {
 // date.
 //
 // https://pinboard.in/api/#posts_dates
-func PostsDates(opt *PostsDatesOptions) (map[string]string, error) {
+func PostsDates(opt *PostsDatesOptions) (map[string]int, error) {
 	resp, err := get("postsDates", opt)
 	if err != nil {
 		return nil, err
