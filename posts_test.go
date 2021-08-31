@@ -250,6 +250,11 @@ func TestPostsDates(t *testing.T) {
 		t.Errorf("error: expected at least 1 post on %s", expected)
 	}
 
+	// Test count
+	if dates[expected] != 1 {
+		t.Errorf("error: expected count to be 1, got %v", dates[expected])
+	}
+
 	// Clean up by removing test post
 	err = PostsDelete(optAdd.URL)
 	if err != nil {
