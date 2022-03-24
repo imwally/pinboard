@@ -59,6 +59,8 @@ var (
 	}
 
 	pinboardToken = ""
+
+	httpClient = &http.Client{}
 )
 
 // get checks if endpoint is a valid Pinboard API endpoint and then
@@ -103,7 +105,7 @@ func get(endpoint string, options interface{}) (body []byte, err error) {
 	u.RawQuery = q.Encode()
 
 	// Call APImethod with fully constructed URL.
-	res, err := http.Get(u.String())
+	res, err := httpClient.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -208,4 +210,10 @@ func values(i interface{}) (url.Values, error) {
 // is expected to be the full string "name:random".
 func SetToken(token string) {
 	pinboardToken = token
+}
+
+// SetHttpClient sets teh actual http client instance to use to make calls.
+// This can be overridden for caching purposes for example
+func SetHttpClient(client *http.Client) {
+	httpClient = client
 }
